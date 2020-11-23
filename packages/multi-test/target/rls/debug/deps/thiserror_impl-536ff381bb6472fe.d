@@ -1,0 +1,11 @@
+c:\workspace\git\secretbet-contract\packages\multi-test\target\rls\debug\deps\thiserror_impl-536ff381bb6472fe.dll: C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\lib.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\ast.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\attr.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\expand.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\fmt.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\prop.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\valid.rs
+
+c:\workspace\git\secretbet-contract\packages\multi-test\target\rls\debug\deps\thiserror_impl-536ff381bb6472fe.d: C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\lib.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\ast.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\attr.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\expand.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\fmt.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\prop.rs C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\valid.rs
+
+C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\lib.rs:
+C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\ast.rs:
+C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\attr.rs:
+C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\expand.rs:
+C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\fmt.rs:
+C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\prop.rs:
+C:\Users\weather\.cargo\registry\src\github.com-1ecc6299db9ec823\thiserror-impl-1.0.22\src\valid.rs:
