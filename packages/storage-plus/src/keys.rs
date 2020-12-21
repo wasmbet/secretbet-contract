@@ -190,10 +190,23 @@ impl<T: Endian> From<T> for IntKey<T> {
 
 impl<T: Endian> From<PkOwned> for IntKey<T> {
     fn from(wrap: PkOwned) -> Self {
+        // TODO: assert proper length
         IntKey {
             wrapped: wrap,
             data: PhantomData,
         }
+    }
+}
+
+impl<T: Endian> From<Vec<u8>> for IntKey<T> {
+    fn from(wrap: Vec<u8>) -> Self {
+        PkOwned(wrap).into()
+    }
+}
+
+impl<T: Endian> Into<Vec<u8>> for IntKey<T> {
+    fn into(self) -> Vec<u8> {
+        self.wrapped.0
     }
 }
 
