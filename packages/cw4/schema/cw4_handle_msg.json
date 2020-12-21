@@ -27,30 +27,40 @@
       }
     },
     {
-      "description": "apply a diff to the existing members. remove is applied after add, so if an address is in both, it is removed",
+      "description": "Add a new hook to be informed of all membership changes. Must be called by Admin",
       "type": "object",
       "required": [
-        "update_members"
+        "add_hook"
       ],
       "properties": {
-        "update_members": {
+        "add_hook": {
           "type": "object",
           "required": [
-            "add",
-            "remove"
+            "addr"
           ],
           "properties": {
-            "add": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Member"
-              }
-            },
-            "remove": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/HumanAddr"
-              }
+            "addr": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Remove a hook. Must be called by Admin",
+      "type": "object",
+      "required": [
+        "remove_hook"
+      ],
+      "properties": {
+        "remove_hook": {
+          "type": "object",
+          "required": [
+            "addr"
+          ],
+          "properties": {
+            "addr": {
+              "$ref": "#/definitions/HumanAddr"
             }
           }
         }
@@ -60,24 +70,6 @@
   "definitions": {
     "HumanAddr": {
       "type": "string"
-    },
-    "Member": {
-      "description": "A group member has a weight associated with them. This may all be equal, or may have meaning in the app that makes use of the group (eg. voting power)",
-      "type": "object",
-      "required": [
-        "addr",
-        "weight"
-      ],
-      "properties": {
-        "addr": {
-          "$ref": "#/definitions/HumanAddr"
-        },
-        "weight": {
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0.0
-        }
-      }
     }
   }
 }

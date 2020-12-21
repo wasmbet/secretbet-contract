@@ -5,7 +5,7 @@ use cosmwasm_schema::{export_schema, export_schema_with_title, remove_schemas, s
 
 use cw3::{
     Cw3HandleMsg, Cw3QueryMsg, ProposalListResponse, ProposalResponse, ThresholdResponse,
-    VoteListResponse, VoteResponse, VoterListResponse, VoterResponse,
+    VoteListResponse, VoteResponse, VoterDetail, VoterListResponse, VoterResponse,
 };
 
 fn main() {
@@ -25,6 +25,7 @@ fn main() {
     export_schema(&schema_for!(VoteResponse), &out_dir);
     export_schema(&schema_for!(VoteListResponse), &out_dir);
     export_schema(&schema_for!(VoterResponse), &out_dir);
+    export_schema(&schema_for!(VoterDetail), &out_dir);
     export_schema(&schema_for!(VoterListResponse), &out_dir);
     export_schema(&schema_for!(ThresholdResponse), &out_dir);
 }
