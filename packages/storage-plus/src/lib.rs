@@ -8,6 +8,7 @@ mod keys;
 mod map;
 mod path;
 mod prefix;
+mod snapshot;
 
 pub use endian::Endian;
 #[cfg(feature = "iterator")]
@@ -19,4 +20,6 @@ pub use keys::{PkOwned, Prefixer, PrimaryKey, U128Key, U16Key, U32Key, U64Key};
 pub use map::Map;
 pub use path::Path;
 #[cfg(feature = "iterator")]
-pub use prefix::{Bound, Prefix};
+pub use prefix::{range_with_prefix, Bound, Prefix};
+#[cfg(feature = "iterator")]
+pub use snapshot::{SnapshotMap, Strategy};
