@@ -1,13 +1,13 @@
 [package]
-name = "secretbet_manage"
-version = "0.0.1"
-authors = ["SecretBet <ethanfrey@users.noreply.github.com>"]
+name = "secretbet_house"
+version = "0.1.0"
+authors = ["SecretBet <chlrltkd0@gmail.com>"]
 edition = "2018"
-description = "Basic implementation of a CosmWasm-20 compliant token"
+description = "Secret Bet"
 license = "Apache-2.0"
-repository = "https://github.com/CosmWasm/cosmwasm-plus"
-homepage = "https://cosmwasm.com"
-documentation = "https://docs.cosmwasm.com"
+repository = "https://github.com/wasmbet/secretbet-contract"
+homepage = "https://wasmbet.com"
+documentation = "https://docs.wasmbet.com"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

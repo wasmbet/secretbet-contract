@@ -212,7 +212,7 @@ pub fn handle_deposit(
     }
     
     let mut cfg = config_read(deps.storage).load()?;
-    let mut pool_token_info = query_pool_token_info(deps.as_ref())?;
+    let pool_token_info = query_pool_token_info(deps.as_ref())?;
 
     let mint;
     if pool_token_info.total_supply.is_zero() || cfg.pool.is_zero() {
@@ -224,8 +224,6 @@ pub fn handle_deposit(
 
     cfg.pool += amount;
     config(deps.storage).save(&cfg)?;
-
-    let sender_raw = deps.api.canonical_address(&info.sender)?;
 
     let res = HandleResponse {
         messages: vec![
