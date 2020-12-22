@@ -1,17 +1,12 @@
 use cosmwasm_std::{
-    attr, to_binary, Binary, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse,
-    MessageInfo, StdError, StdResult, Uint128, BankMsg, Coin, WasmQuery, QueryRequest, from_binary
+    attr, to_binary, Binary, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse, CanonicalAddr,
+    MessageInfo, StdError, StdResult, Uint128, BankMsg, Coin, WasmQuery, QueryRequest, from_binary, CosmosMsg, WasmMsg
 };
 
 use cw2::{get_contract_version, set_contract_version};
-use cw20::{BalanceResponse, Cw20CoinHuman, Cw20ReceiveMsg, MinterResponse, TokenInfoResponse};
+use cw20::{BalanceResponse, Cw20CoinHuman, Cw20ReceiveMsg, MinterResponse, TokenInfoResponse, Cw20QueryMsg};
 
-use crate::allowances::{
-    handle_decrease_allowance, handle_increase_allowance, handle_send_from,
-    handle_transfer_from, query_allowance,
-};
-use crate::token::{handle_transfer, handle_send, query_balance, query_token_info};
-use crate::enumerable::{query_all_accounts, query_all_allowances};
+// use crate::enumerable::{query_all_accounts, query_all_allowances};
 use crate::error::ContractError;
 use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg, Cw20HookMsg};
 use crate::response::{CasinoInfoResponse};
@@ -30,8 +25,8 @@ pub fn init(
 
     let cfg = Config {
         owner: deps.api.canonical_address(&_info.sender)?,
-        pool_token: deps.api.canonical_address(&_info.sender)?,
-        decasino_token: deps.api.canonical_address(&_info.sender)?,
+        pool_token: CanonicalAddr::default(),
+        decasino_token: CanonicalAddr::default(),
         game_contracts: vec![],
         pool: Uint128(0),
     };
@@ -69,13 +64,13 @@ pub fn handle_update_owner(
     info: MessageInfo,
     owner: HumanAddr,
 ) -> Result<HandleResponse, ContractError> {
-    let mut casino = casino_info_read(deps.storage).load()?;
+    let mut cfg = config_read(deps.storage).load()?;
     let sender = deps.api.canonical_address(&info.sender)?;
-    if casino.owner != sender {
+    if cfg.owner != sender {
         return Err(ContractError::Unauthorized {});
     }
-    casino.owner = deps.api.canonical_address(&owner)?;
-    casino_info(deps.storage).save(&casino)?;
+    cfg.owner = deps.api.canonical_address(&owner)?;
+    config(deps.storage).save(&cfg)?;
 
     let res = HandleResponse {
         messages: vec![],
@@ -173,16 +168,16 @@ pub fn handle_remove_game_contract(
     info: MessageInfo,
     game_contract: HumanAddr,
 ) -> Result<HandleResponse, ContractError> {
-    let mut casino = casino_info_read(deps.storage).load()?;
+    let mut cfg = config_read(deps.storage).load()?;
     let sender = deps.api.canonical_address(&info.sender)?;
 
-    if casino.owner != sender {
+    if cfg.owner != sender {
         return Err(ContractError::Unauthorized {});
     }
     let contract = deps.api.canonical_address(&game_contract)?;
-    if casino.game_contracts.contains(&contract) {
-        casino.game_contracts.retain(|c| c != &contract);
-        casino_info(deps.storage).save(&casino)?;
+    if cfg.game_contracts.contains(&contract) {
+        cfg.game_contracts.retain(|c| c != &contract);
+        config(deps.storage).save(&cfg)?;
     }
 
     let res = HandleResponse {
@@ -222,14 +217,14 @@ pub fn handle_deposit(
     }
     
     let mut cfg = config_read(deps.storage).load()?;
-    let mut pool_token_info = query_pool_token_info(deps);
+    let mut pool_token_info = query_pool_token_info(deps.as_ref());
 
     let mint;
-    if pool_token_info.total_supply.is_zero() || cfg.pool.is_zero() {
+    if &pool_token_info.total_supply.is_zero() || cfg.pool.is_zero() {
         mint = amount;
     } else {
         // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 이렇게해야되? 왜 Uint128끼리 계산어케해
-        mint = Uint128((token.total_supply.u128() * amount.u128()) / casino.pool.u128());
+        mint = Uint128((pool_token_info.total_supply.u128() * amount.u128()) / cfg.pool.u128());
     }
 
     cfg.pool += amount;
@@ -267,8 +262,8 @@ pub fn handle_withdraw_cw20(
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
             Cw20HookMsg::Withdraw {} => {
-                let config: PairInfoRaw = read_pair_info(&deps.storage)?;
-                if deps.api.canonical_address(&env.message.sender)? != config.liquidity_token {
+                let mut cfg = config_read(deps.storage).load()?;
+                if deps.api.canonical_address(&info.sender)? != cfg.pool_token {
                     return Err(StdError::unauthorized());
                 }
 
@@ -452,7 +447,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 pub fn query_config(deps: Deps) -> StdResult<CasinoInfoResponse> {
-    let info = casino_info_read(deps.storage).load()?;
+    let info = config_read(deps.storage).load()?;
     let res = CasinoInfoResponse {
         owner: info.owner,
         pool: info.pool,
@@ -464,11 +459,8 @@ pub fn query_config(deps: Deps) -> StdResult<CasinoInfoResponse> {
 pub fn query_pool_token_info(deps: Deps) -> StdResult<TokenInfoResponse> {
     let cfg = config_read(deps.storage).load()?;
     let res: TokenInfoResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: HumanAddr::from(cfg.pool_token),
-        msg: to_binary(&QueryMsg::TokenInfo {
-            base_asset,
-            quote_asset,
-        })?,
+        contract_addr: &deps.api.human_address(cfg.pool_token),
+        msg: to_binary(&QueryMsg::TokenInfo { })?,
     }))?;
 
     Ok(res)
@@ -485,9 +477,9 @@ mod tests {
         query_balance(deps, address.into()).unwrap().balance
     }
 
-    fn get_casino_info(deps: Deps) -> CasinoInfoResponse {
-        query_casino_info(deps).unwrap()
-    }
+    // fn get_casino_info(deps: Deps) -> CasinoInfoResponse {
+    //     config_read(deps).unwrap()
+    // }
 
     fn get_token_info(deps: Deps) -> TokenInfoResponse {
         query_token_info(deps).unwrap()

@@ -56,6 +56,7 @@ pub enum QueryMsg {
     /// Return type: TokenInfoResponse.
     PoolTokenInfo {},
     Config {},
+    TokenInfo {},
 }
 
 /// We currently take no arguments for migrations
