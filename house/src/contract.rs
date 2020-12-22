@@ -1,10 +1,10 @@
 use cosmwasm_std::{
     attr, to_binary, Binary, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse, CanonicalAddr,
-    MessageInfo, StdError, StdResult, Uint128, BankMsg, Coin, WasmQuery, QueryRequest, from_binary, CosmosMsg, WasmMsg
+    MessageInfo, StdError, StdResult, Uint128, BankMsg, Coin, WasmQuery, QueryRequest, from_binary, CosmosMsg, WasmMsg, 
 };
 
 use cw2::{get_contract_version, set_contract_version};
-use cw20::{BalanceResponse, Cw20CoinHuman, Cw20ReceiveMsg, MinterResponse, TokenInfoResponse, Cw20QueryMsg};
+use cw20::{BalanceResponse, Cw20CoinHuman, Cw20ReceiveMsg, MinterResponse, TokenInfoResponse, Cw20QueryMsg, Cw20HandleMsg};
 
 // use crate::enumerable::{query_all_accounts, query_all_allowances};
 use crate::error::ContractError;
@@ -235,10 +235,10 @@ pub fn handle_deposit(
     let res = HandleResponse {
         messages: vec![
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: deps.api.human_address(&asset_config.token)?,
+                contract_addr: deps.api.human_address(&cfg.pool_token)?,
                 msg: to_binary(&Cw20HandleMsg::Mint {
                     amount: mint,
-                    recipient: sender_raw,
+                    recipient: info.sender,
                 })?,
                 send: vec![],
             }),
@@ -264,7 +264,7 @@ pub fn handle_withdraw_cw20(
             Cw20HookMsg::Withdraw {} => {
                 let mut cfg = config_read(deps.storage).load()?;
                 if deps.api.canonical_address(&info.sender)? != cfg.pool_token {
-                    return Err(StdError::unauthorized());
+                    return Err(ContractError::Unauthorized {});
                 }
 
                 try_withdraw_liquidity(deps, env, cw20_msg.sender, cw20_msg.amount)
