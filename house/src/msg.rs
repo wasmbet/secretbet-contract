@@ -32,7 +32,7 @@ pub enum HandleMsg {
     Withdraw {
         amount: Uint128,
     },
-    Play {
+    Result {
         result: bool,
         bet_amount: Uint128,
         prize_amount: Uint128,

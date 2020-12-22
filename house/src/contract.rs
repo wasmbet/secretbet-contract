@@ -47,14 +47,13 @@ pub fn handle(
         HandleMsg::AddGameContract { game_contract } => handle_add_game_contract(deps, env, info, game_contract),
         HandleMsg::RemoveGameContract { game_contract } => handle_remove_game_contract(deps, env, info, game_contract),
         HandleMsg::Deposit { } => handle_deposit(deps, env, info),
-        // HandleMsg::Withdraw { amount } => handle_withdraw(deps, env, info, amount),
-        HandleMsg::Receive(msg) => handle_withdraw_cw20(deps, env, info, msg),
-        HandleMsg::Play {
+        HandleMsg::Receive(msg) => handle_withdraw(deps, env, info, msg),
+        HandleMsg::Result {
             result,
             bet_amount,
             prize_amount,
             winner,
-        } => handle_play(deps, env, info, result, bet_amount, prize_amount, winner),
+        } => handle_result(deps, env, info, result, bet_amount, prize_amount, winner),
     }
 }
 
@@ -217,10 +216,10 @@ pub fn handle_deposit(
     }
     
     let mut cfg = config_read(deps.storage).load()?;
-    let mut pool_token_info = query_pool_token_info(deps.as_ref());
+    let mut pool_token_info = query_pool_token_info(deps.as_ref())?;
 
     let mint;
-    if &pool_token_info.total_supply.is_zero() || cfg.pool.is_zero() {
+    if pool_token_info.total_supply.is_zero() || cfg.pool.is_zero() {
         mint = amount;
     } else {
         // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 이렇게해야되? 왜 Uint128끼리 계산어케해
@@ -252,7 +251,7 @@ pub fn handle_deposit(
     Ok(res)
 }
 
-pub fn handle_withdraw_cw20(
+pub fn handle_withdraw(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -263,129 +262,58 @@ pub fn handle_withdraw_cw20(
         match from_binary(&msg)? {
             Cw20HookMsg::Withdraw {} => {
                 let mut cfg = config_read(deps.storage).load()?;
-                if deps.api.canonical_address(&info.sender)? != cfg.pool_token {
-                    return Err(ContractError::Unauthorized {});
-                }
 
-                try_withdraw_liquidity(deps, env, cw20_msg.sender, cw20_msg.amount)
+                // 이거 왜있는지 이해가 안되네
+                // if deps.api.canonical_address(&info.sender)? != cfg.pool_token {
+                //     return Err(ContractError::Unauthorized {});
+                // }
+
+                let mut pool_token_info = query_pool_token_info(deps.as_ref())?;
+
+                let send_amount = (cfg.pool.u128() / pool_token_info.total_supply.u128()) * cw20_msg.amount.u128();
+                cfg.pool = Uint128(cfg.pool.u128() - send_amount);
+                config(deps.storage).save(&cfg)?;
+
+                // 나중에 이런식으로 업데이트 할수도있다.
+                // token_info(deps.storage).update(|mut info| -> StdResult<_> {
+                //     info.total_supply = (info.total_supply - amount)?;
+                //     Ok(info)
+                // })?;
+
+                let token_transfer = BankMsg::Send {
+                    from_address: env.contract.address.clone(),
+                    to_address: info.sender.clone(),
+                    amount: vec![Coin {
+                        denom: "uscrt".to_string(),
+                        amount: Uint128(send_amount),
+                    }],
+                }
+                .into();
+
+                return Ok(HandleResponse {
+                    messages: vec![
+                        token_transfer,
+                        CosmosMsg::Wasm(WasmMsg::Execute {
+                            contract_addr: deps.api.human_address(&cfg.pool_token)?,
+                            msg: to_binary(&Cw20HandleMsg::Burn { amount: cw20_msg.amount })?,
+                            send: vec![],
+                        }),
+                    ],
+                    attributes: vec![
+                        attr("action", "withdraw_pool"),
+                        attr("withdraw_share", &cw20_msg.amount.to_string()),
+                        attr("amount", send_amount),
+                    ],
+                    data: None,
+                });
             }
         }
     } else {
-        Err(StdError::generic_err("data should be given"))
+        return Err(ContractError::NoMethod {});
     }
-    if amount == Uint128::zero() {
-        return Err(ContractError::InvalidZeroAmount {});
-    }
-
-    let sender_raw = deps.api.canonical_address(&info.sender)?;
-
-    let current_amount = balances(deps.storage)
-        .may_load(sender_raw.as_slice())?
-        .unwrap_or_default();
-
-    if amount > current_amount {
-        return Err(ContractError::InvalidZeroAmount {});
-    }
-
-    let mut cfg = config_read(deps.storage).load()?;
-    let mut pool_token_info = query_pool_token_info(deps);
-
-    let send_amount = (casino.pool.u128() / token.total_supply.u128()) * amount.u128();
-    casino.pool = Uint128(casino.pool.u128() - send_amount);
-    casino_info(deps.storage).save(&casino)?;
-
-    let mut accounts = balances(deps.storage);
-    accounts.update(sender_raw.as_slice(), |balance: Option<Uint128>| {
-        balance.unwrap_or_default() - amount
-    })?;
-
-    token_info(deps.storage).update(|mut info| -> StdResult<_> {
-        info.total_supply = (info.total_supply - amount)?;
-        Ok(info)
-    })?;
-
-    let token_transfer = BankMsg::Send {
-        from_address: env.contract.address.clone(),
-        to_address: info.sender.clone(),
-        amount: vec![Coin {
-            denom: "uscrt".to_string(),
-            amount: Uint128(send_amount),
-        }],
-    }
-    .into();
-
-    let res = HandleResponse {
-        messages: vec![token_transfer],
-        attributes: vec![
-            attr("action", "withdraw"),
-            attr("amount", amount),
-            attr("send_amount", send_amount),
-        ],
-        data: None,
-    };
-    Ok(res)
 }
 
-// pub fn handle_withdraw(
-//     deps: DepsMut,
-//     env: Env,
-//     info: MessageInfo,
-//     amount: Uint128,
-// ) -> Result<HandleResponse, ContractError> {
-//     if amount == Uint128::zero() {
-//         return Err(ContractError::InvalidZeroAmount {});
-//     }
-
-//     let sender_raw = deps.api.canonical_address(&info.sender)?;
-
-//     let current_amount = balances(deps.storage)
-//         .may_load(sender_raw.as_slice())?
-//         .unwrap_or_default();
-
-//     if amount > current_amount {
-//         return Err(ContractError::InvalidZeroAmount {});
-//     }
-
-//     let mut cfg = config_read(deps.storage).load()?;
-//     let mut pool_token_info = query_pool_token_info(deps);
-
-//     let send_amount = (casino.pool.u128() / token.total_supply.u128()) * amount.u128();
-//     casino.pool = Uint128(casino.pool.u128() - send_amount);
-//     casino_info(deps.storage).save(&casino)?;
-
-//     let mut accounts = balances(deps.storage);
-//     accounts.update(sender_raw.as_slice(), |balance: Option<Uint128>| {
-//         balance.unwrap_or_default() - amount
-//     })?;
-
-//     token_info(deps.storage).update(|mut info| -> StdResult<_> {
-//         info.total_supply = (info.total_supply - amount)?;
-//         Ok(info)
-//     })?;
-
-//     let token_transfer = BankMsg::Send {
-//         from_address: env.contract.address.clone(),
-//         to_address: info.sender.clone(),
-//         amount: vec![Coin {
-//             denom: "uscrt".to_string(),
-//             amount: Uint128(send_amount),
-//         }],
-//     }
-//     .into();
-
-//     let res = HandleResponse {
-//         messages: vec![token_transfer],
-//         attributes: vec![
-//             attr("action", "withdraw"),
-//             attr("amount", amount),
-//             attr("send_amount", send_amount),
-//         ],
-//         data: None,
-//     };
-//     Ok(res)
-// }
-
-pub fn handle_play(
+pub fn handle_result(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -394,21 +322,21 @@ pub fn handle_play(
     prize_amount: Uint128,
     winner: HumanAddr,
 ) -> Result<HandleResponse, ContractError> {
-    let casino = casino_info_read(deps.storage).load()?;
+    let cfg = config_read(deps.storage).load()?;
     
     let sender_raw = deps.api.canonical_address(&info.sender)?;
-    if !casino.game_contracts.contains(&sender_raw) {
+    if !cfg.game_contracts.contains(&sender_raw) {
         return Err(ContractError::Unauthorized {});
     }
 
     let mut messages = vec![];
     if result {
-        casino_info(deps.storage).update(|mut info| -> StdResult<_> {
+        config(deps.storage).update(|mut info| -> StdResult<_> {
             info.pool = (info.pool - prize_amount)?;
             Ok(info)
         })?;
     } else {
-        casino_info(deps.storage).update(|mut info| -> StdResult<_> {
+        config(deps.storage).update(|mut info| -> StdResult<_> {
             info.pool = info.pool + bet_amount;
             Ok(info)
         })?;
@@ -440,8 +368,6 @@ pub fn handle_play(
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Balance { address } => to_binary(&query_balance(deps, address)?),
-        QueryMsg::PoolTokenInfo {} => to_binary(&query_token_info(deps)?),
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
     }
 }
@@ -459,7 +385,7 @@ pub fn query_config(deps: Deps) -> StdResult<CasinoInfoResponse> {
 pub fn query_pool_token_info(deps: Deps) -> StdResult<TokenInfoResponse> {
     let cfg = config_read(deps.storage).load()?;
     let res: TokenInfoResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: &deps.api.human_address(cfg.pool_token),
+        contract_addr: deps.api.human_address(&cfg.pool_token)?,
         msg: to_binary(&QueryMsg::TokenInfo { })?,
     }))?;
 
