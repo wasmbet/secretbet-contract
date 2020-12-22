@@ -5,8 +5,6 @@ mod error;
 pub mod msg;
 pub mod state;
 
-mod migrations;
-
 pub use crate::error::ContractError;
 
 #[cfg(all(target_arch = "wasm32", not(feature = "library")))]
