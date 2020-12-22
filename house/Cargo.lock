@@ -133,8 +133,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "secretbet_manage"
-version = "0.0.1"
+name = "secretbet_house"
+version = "0.1.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
