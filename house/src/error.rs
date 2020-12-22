@@ -12,6 +12,9 @@ pub enum ContractError {
     #[error("No Range")]
     NoRange {},
 
+    #[error("No Method")]
+    NoMethod {},
+
     #[error("No {denom} tokens sent")]
     EmptyBalance { denom: String },
 

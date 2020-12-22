@@ -29,10 +29,7 @@ pub enum HandleMsg {
     },
     Deposit {},
     Receive(Cw20ReceiveMsg),
-    Withdraw {
-        amount: Uint128,
-    },
-    Play {
+    Result {
         result: bool,
         bet_amount: Uint128,
         prize_amount: Uint128,
@@ -49,12 +46,6 @@ pub enum Cw20HookMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    /// Returns the current balance of the given address, 0 if unset.
-    /// Return type: BalanceResponse.
-    Balance { address: HumanAddr },
-    /// Returns metadata on the contract - name, decimals, supply, etc.
-    /// Return type: TokenInfoResponse.
-    PoolTokenInfo {},
     Config {},
 }
 
