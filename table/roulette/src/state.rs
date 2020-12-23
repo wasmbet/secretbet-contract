@@ -18,6 +18,10 @@ pub struct Config {
     pub bet_amount_sum: Uint128,
 }
 
+pub struct Game {
+    
+}
+
 pub fn config<S: Storage>(storage: &mut S) -> Singleton<S, Config> {
     singleton(storage, CONFIG_KEY)
 }
