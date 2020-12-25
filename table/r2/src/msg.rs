@@ -47,6 +47,17 @@ pub enum HandleMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
+pub enum HouseMsg {
+    Result {
+        result: bool,
+        bet_amount: Uint128,
+        prize_amount: Uint128,
+        winner: HumanAddr,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Config {},
 }

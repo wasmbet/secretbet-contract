@@ -7,7 +7,7 @@ use cw20::{BalanceResponse, Cw20CoinHuman, Cw20ReceiveMsg, MinterResponse, Token
 
 // use crate::enumerable::{query_all_accounts, query_all_allowances};
 use crate::error::ContractError;
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
+use crate::msg::{HandleMsg, HouseMsg, InitMsg, QueryMsg};
 use crate::response::{ConfigResponse};
 use crate::state::{games, games_read, config, config_read, Config, Game};
 use crate::rand::Prng;
@@ -341,6 +341,8 @@ pub fn handle_bet(
         Err(_err) => return Err(ContractError::InvalidZeroAmount {}),
     };
 
+    let house_config = query_house_info()?;
+
     // 여기서 house Contract 로 쿼리날려서 배팅초과인지 체크
 
     let game = Game {
@@ -384,35 +386,106 @@ pub fn handle_result(
     let game = games.may_load(sender_raw.as_slice()).unwrap_or_default();
 
     // 다음 블록이 안나왔을때, 이렇게 체크하는게 맞나?
-    game = match game {
+    match game {
         Some(g) => {
             if g.block_height >= env.block.height {
                 return Err(ContractError::NoResult {});
+            } else if env.block.height - g.block_height != 1 {
+                let refundMsg = BankMsg::Send {
+                    from_address: env.contract.address.clone(),
+                    to_address: info.sender.clone(),
+                    amount: vec![Coin {
+                        denom: "uscrt".to_string(),
+                        amount: g.bet_amount,
+                    }],
+                }.into();
+
+                games.remove(sender_raw.as_slice());
+                
+                let res = HandleResponse {
+                    messages: vec![refundMsg],
+                    attributes: vec![
+                        attr("action", "Refund"),
+                        attr("bet_amount_sum", true),
+                    ],
+                    data: None,
+                };
+                return Ok(res);
+            } else {
+                let mut rand_entropy: Vec<u8> = Vec::new();
+
+                rand_entropy.extend(sender_raw.as_slice().to_vec());
+                rand_entropy.extend(env.block.chain_id.as_bytes().to_vec());
+                rand_entropy.extend(&env.block.height.to_be_bytes());
+                rand_entropy.extend(&env.block.time.to_be_bytes());
+                rand_entropy.extend(&env.block.time_nanos.to_be_bytes());
+                rand_entropy = Sha256::digest(&rand_entropy).as_slice().to_vec();
+                rand_entropy.extend_from_slice(&env.block.time.to_be_bytes());
+
+                let mut rng: Prng = Prng::new(&sender_raw.as_slice().to_vec(), &rand_entropy);
+
+                let lucky_number_u32 = rng.select_one_of(59);
+                let lucky_number = lucky_number_u32 as u64;
+            
+                games.remove(sender_raw.as_slice());
+            
+                let result = check_result(g, lucky_number)?;
+
+                let message = CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: deps.api.human_address(&cfg.house_contract)?,
+                    msg: to_binary(&HouseMsg::Result {
+                        result: result,
+                        bet_amount: g.bet_amount,
+                        prize_amount: g.payout,
+                        winner: info.sender,
+                    })?,
+                    send: vec![Coin {
+                        denom: "uscrt".to_string(),
+                        amount: g.bet_amount,
+                    }],
+                }).into();
+
+                let attributes = vec![];
+
+                if result {
+                    attributes.push(attr("action", "win"));
+                    attributes.push(attr("payout", g.payout));
+
+                } else {
+                    attributes.push(attr("action", "lose"));
+                    attributes.push(attr("bet_amount", g.bet_amount));
+                }
+
+                let res = HandleResponse {
+                    messages: vec![message],
+                    attributes,
+                    data: None,
+                };
+                return Ok(res);
             }
-            Some(g)
         },
         None => { return Err(ContractError::NoGame {}); },
     };
+}
 
-    let mut rand_entropy: Vec<u8> = Vec::new();
+pub fn check_result(game: Game, lucky_number: u64) -> StdResult<bool> {
+    match game.position {
+        true => {
+            if lucky_number > game.prediction_number as u64 {
+                return Ok(true);
+            } else {
+                return Ok(false);
+            };
+        },
+        false => {
+            if lucky_number < game.prediction_number as u64 {
+                return Ok(true);
+            } else {
+                return Ok(false);
+            }
+        }
+    }
 
-    rand_entropy.extend(sender_raw.as_slice().to_vec());
-    rand_entropy.extend(env.block.chain_id.as_bytes().to_vec());
-    rand_entropy.extend(&env.block.height.to_be_bytes());
-    rand_entropy.extend(&env.block.time.to_be_bytes());
-    rand_entropy = Sha256::digest(&rand_entropy).as_slice().to_vec();
-    rand_entropy.extend_from_slice(&env.block.time.to_be_bytes());
-
-    //////////////// 마지막으로 이전 블록의 해시를 넣어야된다. ////////////////////
-    ///////// sender_raw.as_slice().to_vec() 대신에 이전블록의 해시값 ////////////
-    let mut rng: Prng = Prng::new(&sender_raw.as_slice().to_vec(), &rand_entropy);
-
-    let lucky_number_u32 = rng.select_one_of(59);
-    let lucky_number = lucky_number_u32 as u64;
-
-    game.result
-    
-    Ok();
 
 }
 
@@ -434,23 +507,30 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 
-pub fn query_config(deps: Deps) -> StdResult<CasinoInfoResponse> {
+pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let info = config_read(deps.storage).load()?;
-    let res = CasinoInfoResponse {
+    let res = ConfigResponse {
         owner: info.owner,
-        pool: info.pool,
-        game_contracts: info.game_contracts,
+        house_contract: info.house_contract,
+        name: info.name,
+        description: info.description,
+        min_bet_amount: info.min_bet_amount,
+        max_bet_amount: info.max_bet_amount,
+        max_bet_rate: info.max_bet_rate,
+        house_fee: info.house_fee,
+        bet_amount_sum: info.bet_amount_sum,
     };
     Ok(res)
 }
 
-pub fn query_pool_token_info(deps: Deps) -> StdResult<TokenInfoResponse> {
+pub fn query_house_info(deps: Deps) -> StdResult<TokenInfoResponse> {
     let cfg = config_read(deps.storage).load()?;
     let res: TokenInfoResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: deps.api.human_address(&cfg.pool_token)?,
-        msg: to_binary(&Cw20QueryMsg::TokenInfo{})?,
+        contract_addr: deps.api.human_address(&cfg.house_contract)?,
+        msg: to_binary(&HouseQuery::Config{})?,
     }))?;
     Ok(res)
+
 }
 
 // #[cfg(test)]
