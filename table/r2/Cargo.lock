@@ -80,6 +80,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dec"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw0",
+ "cw2",
+ "cw20",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "itoa"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -133,7 +147,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "secretbet_table_roulette"
+name = "secretbet-table-roulette"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema",
@@ -142,6 +156,7 @@ dependencies = [
  "cw0",
  "cw2",
  "cw20",
+ "dec",
  "schemars",
  "serde",
  "thiserror",

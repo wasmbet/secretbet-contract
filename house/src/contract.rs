@@ -5,6 +5,8 @@ use cosmwasm_std::{
 
 use cw20::{BalanceResponse, Cw20CoinHuman, Cw20ReceiveMsg, MinterResponse, TokenInfoResponse, Cw20QueryMsg, Cw20HandleMsg};
 
+use dec::{ HouseResponse, HouseHandleMsg, HouseQueryMsg };
+
 // use crate::enumerable::{query_all_accounts, query_all_allowances};
 use crate::error::ContractError;
 use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg, Cw20HookMsg};
@@ -362,13 +364,13 @@ pub fn handle_result(
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config {} => to_binary(&query_config(deps)?),
+        HouseQueryMsg::Config {} => to_binary(&query_config(deps)?),
     }
 }
 
-pub fn query_config(deps: Deps) -> StdResult<CasinoInfoResponse> {
+pub fn query_config(deps: Deps) -> StdResult<HouseResponse> {
     let info = config_read(deps.storage).load()?;
-    let res = CasinoInfoResponse {
+    let res = HouseResponse {
         owner: info.owner,
         pool: info.pool,
         game_contracts: info.game_contracts,
