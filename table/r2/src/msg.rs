@@ -10,32 +10,18 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    UpdateOwner {
+    UpdateConfig {
         owner: HumanAddr,
-    },
-    UpdateHouseContract {
         house_contract: HumanAddr,
-    },
-    UpdateName {
         name: String,
-    },
-    UpdateDescription {
         description: String,
     },
-    UpdateMinBetAmount {
-        amount: u64,
-    },
-    UpdateMaxBetAmount {
-        amount: u64,
-    },
-    UpdateMaxBetRate {
-        rate: u8,
-    },
-    UpdateHouseFee {
-        house_fee: u64,
-    },
-    UpdateBetAmountSum {
-        amount: Uint128,
+    UpdateParams {
+        house_fee: Decimal,
+        max_bet_amount: Uint128,
+        min_bet_amount: Uint128,
+        max_bet_rate: Decimal,
+        min_bet_rate: Decimal,
     },
     Bet {
         bet_amount: Uint128,

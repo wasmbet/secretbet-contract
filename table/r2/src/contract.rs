@@ -26,11 +26,6 @@ pub fn init(
         house_contract: CanonicalAddr::default(),
         name: String::default(),
         description: String::default(),
-        min_bet_amount: 0,
-        max_bet_amount: 0,
-        max_bet_rate: 0,
-        house_fee: 0,
-        bet_amount_sum: Uint128(0),
     };
     config(deps.storage).save(&cfg)?;
     Ok(InitResponse::default())
@@ -43,38 +38,51 @@ pub fn handle(
     msg: HandleMsg,
 ) -> Result<HandleResponse, ContractError> {
     match msg {
-        HandleMsg::UpdateOwner { owner } => handle_update_owner(deps, env, info, owner),
-        HandleMsg::UpdateHouseContract { house_contract } => handle_update_house_contract(deps, env, info, house_contract),
-        HandleMsg::UpdateName { name } => handle_update_name(deps, env, info, name),
-        HandleMsg::UpdateDescription { description } => handle_update_description(deps, env, info, description),
-        HandleMsg::UpdateMinBetAmount { amount } => handle_update_min_bet_amount(deps, env, info, amount),
-        HandleMsg::UpdateMaxBetAmount { amount } => handle_update_max_bet_amount(deps, env, info, amount),
-        HandleMsg::UpdateMaxBetRate { rate } => handle_update_max_bet_rate(deps, env, info, rate),
-        HandleMsg::UpdateHouseFee { house_fee } => handle_update_house_fee(deps, env, info, house_fee),
-        HandleMsg::UpdateBetAmountSum { amount } => handle_update_bet_amount_sum(deps, env, info, amount),
+        HandleMsg::UpdateConfig { owner, house_contract, name, description } => handle_update_config(deps, env, info, owner, house_contract, name, description),
+        HandleMsg::UpdateParams { house_fee, max_bet_amount, min_bet_amount, max_bet_rate, min_bet_rate } => handle_update_params(deps, env, info, house_fee, max_bet_amount, min_bet_amount, max_bet_rate, min_bet_rate),
         HandleMsg::Bet { bet_amount, prediction_number, position } => handle_bet(deps, env, info, bet_amount, prediction_number, position),
         HandleMsg::Result { } => handle_result(deps, env, info),
     }
 }
 
-pub fn handle_update_owner(
+pub fn handle_update_config(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
     owner: HumanAddr,
+    house_contract: HumanAddr,
+    name: String,
+    description: String,
 ) -> Result<HandleResponse, ContractError> {
     let mut cfg = config_read(deps.storage).load()?;
     let sender = deps.api.canonical_address(&info.sender)?;
+
     if cfg.owner != sender {
         return Err(ContractError::Unauthorized {});
     }
-    cfg.owner = deps.api.canonical_address(&owner)?;
+
+    if let Some(owner) = owner {
+        cfg.owner = deps.api.canonical_address(&owner)?;
+    }
+
+    if let Some(house_contract) = house_contract {
+        cfg.house_contract = deps.api.canonical_address(&house_contract)?;
+    }
+
+    if let Some(name) = name {
+        cfg.name = name;
+    }
+
+    if let Some(description) = description {
+        cfg.description = description;
+    }
+
     config(deps.storage).save(&cfg)?;
 
     let res = HandleResponse {
         messages: vec![],
         attributes: vec![
-            attr("action", "updateOwner"),
+            attr("action", "updateConfig"),
             attr("owner", owner),
         ],
         data: None,
@@ -82,200 +90,49 @@ pub fn handle_update_owner(
     Ok(res)
 }
 
-pub fn handle_update_house_contract(
+pub fn handle_update_params(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    house_contract: HumanAddr,
+    house_fee: Decimal,
+    max_bet_amount: Uint128,
+    min_bet_amount: Uint128,
+    max_bet_rate: Decimal,
+    min_bet_rate: Decimal,
 ) -> Result<HandleResponse, ContractError> {
-    let mut cfg = config_read(deps.storage).load()?;
+    let mut params = params_read(deps.storage).load()?;
     let sender = deps.api.canonical_address(&info.sender)?;
-    if cfg.owner != sender {
+
+    if params.owner != sender {
         return Err(ContractError::Unauthorized {});
     }
-    cfg.house_contract = deps.api.canonical_address(&house_contract)?;
-    config(deps.storage).save(&cfg)?;
+   
+    if let Some(house_fee) = house_fee {
+        params.house_fee = house_fee;
+    }
+
+    if let Some(max_bet_amount) = max_bet_amount {
+        params.max_bet_amount = max_bet_amount;
+    }
+
+    if let Some(min_bet_amount) = min_bet_amount {
+        params.min_bet_amount = min_bet_amount;
+    }
+
+    if let Some(max_bet_rate) = max_bet_rate {
+        params.max_bet_rate = max_bet_rate;
+    }
+
+    if let Some(min_bet_rate) = min_bet_rate {
+        params.min_bet_rate = min_bet_rate;
+    }
+
+    params(deps.storage).save(&params)?;
 
     let res = HandleResponse {
         messages: vec![],
         attributes: vec![
-            attr("action", "UpdateHouseContract"),
-            attr("house_contract", house_contract),
-        ],
-        data: None,
-    };
-    Ok(res)
-}
-
-pub fn handle_update_name(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    name: String,
-) -> Result<HandleResponse, ContractError> {
-    let mut cfg = config_read(deps.storage).load()?;
-    let sender = deps.api.canonical_address(&info.sender)?;
-    if cfg.owner != sender {
-        return Err(ContractError::Unauthorized {});
-    }
-    cfg.name = name;
-    config(deps.storage).save(&cfg)?;
-
-    let res = HandleResponse {
-        messages: vec![],
-        attributes: vec![
-            attr("action", "UpdateName"),
-            attr("name", name),
-        ],
-        data: None,
-    };
-    Ok(res)
-}
-
-pub fn handle_update_description(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    description: String,
-) -> Result<HandleResponse, ContractError> {
-    let mut cfg = config_read(deps.storage).load()?;
-    let sender = deps.api.canonical_address(&info.sender)?;
-    if cfg.owner != sender {
-        return Err(ContractError::Unauthorized {});
-    }
-    cfg.description = description;
-    config(deps.storage).save(&cfg)?;
-
-    let res = HandleResponse {
-        messages: vec![],
-        attributes: vec![
-            attr("action", "UpdateDescription"),
-            attr("description", description),
-        ],
-        data: None,
-    };
-    Ok(res)
-}
-
-pub fn handle_update_min_bet_amount(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    amount: u64,
-) -> Result<HandleResponse, ContractError> {
-    let mut cfg = config_read(deps.storage).load()?;
-    let sender = deps.api.canonical_address(&info.sender)?;
-    if cfg.owner != sender {
-        return Err(ContractError::Unauthorized {});
-    }
-    cfg.min_bet_amount = amount;
-    config(deps.storage).save(&cfg)?;
-
-    let res = HandleResponse {
-        messages: vec![],
-        attributes: vec![
-            attr("action", "UpdateMinBetAmount"),
-            attr("min_bet_amount", amount),
-        ],
-        data: None,
-    };
-    Ok(res)
-}
-
-pub fn handle_update_max_bet_amount(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    amount: u64,
-) -> Result<HandleResponse, ContractError> {
-    let mut cfg = config_read(deps.storage).load()?;
-    let sender = deps.api.canonical_address(&info.sender)?;
-    if cfg.owner != sender {
-        return Err(ContractError::Unauthorized {});
-    }
-    cfg.max_bet_amount = amount;
-    config(deps.storage).save(&cfg)?;
-
-    let res = HandleResponse {
-        messages: vec![],
-        attributes: vec![
-            attr("action", "UpdateMaxBetAmount"),
-            attr("max_bet_amount", amount),
-        ],
-        data: None,
-    };
-    Ok(res)
-}
-
-pub fn handle_update_max_bet_rate(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    rate: u8,
-) -> Result<HandleResponse, ContractError> {
-    let mut cfg = config_read(deps.storage).load()?;
-    let sender = deps.api.canonical_address(&info.sender)?;
-    if cfg.owner != sender {
-        return Err(ContractError::Unauthorized {});
-    }
-    cfg.max_bet_rate = rate;
-    config(deps.storage).save(&cfg)?;
-
-    let res = HandleResponse {
-        messages: vec![],
-        attributes: vec![
-            attr("action", "UpdateMaxBetRate"),
-            attr("max_bet_rate", rate),
-        ],
-        data: None,
-    };
-    Ok(res)
-}
-
-pub fn handle_update_house_fee(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    house_fee: u64,
-) -> Result<HandleResponse, ContractError> {
-    let mut cfg = config_read(deps.storage).load()?;
-    let sender = deps.api.canonical_address(&info.sender)?;
-    if cfg.owner != sender {
-        return Err(ContractError::Unauthorized {});
-    }
-    cfg.house_fee = house_fee;
-    config(deps.storage).save(&cfg)?;
-
-    let res = HandleResponse {
-        messages: vec![],
-        attributes: vec![
-            attr("action", "UpdateHouseFee"),
-            attr("house_fee", house_fee),
-        ],
-        data: None,
-    };
-    Ok(res)
-}
-
-pub fn handle_update_bet_amount_sum(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    amount: u64,
-) -> Result<HandleResponse, ContractError> {
-    let mut cfg = config_read(deps.storage).load()?;
-    let sender = deps.api.canonical_address(&info.sender)?;
-    if cfg.owner != sender {
-        return Err(ContractError::Unauthorized {});
-    }
-    cfg.bet_amount_sum = Uint128::from(amount);
-    config(deps.storage).save(&cfg)?;
-
-    let res = HandleResponse {
-        messages: vec![],
-        attributes: vec![
-            attr("action", "UpdateBetAmountSum"),
-            attr("bet_amount_sum", amount),
+            attr("action", "UpdateParams"),
         ],
         data: None,
     };
